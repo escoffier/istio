@@ -303,6 +303,9 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 	// egress listener only. A route with sniffing would not have been generated if there
 	// was a sidecar with explicit port (and hence protocol declaration). A route with
 	// sniffing is generated only in the case of the catch all egress listener.
+	if routeName == "7777" {
+		fmt.Println(routeName)
+	}
 	egressListener := node.SidecarScope.GetEgressListenerForRDS(listenerPort, routeName)
 	// We should never be getting a nil egress listener because the code that setup this RDS
 	// call obviously saw an egress listener
@@ -393,7 +396,7 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 	vhdomains := sets.String{}
 	knownFQDN := sets.String{}
 
-	buildVirtualHost := func(hostname string, vhwrapper istio_route.VirtualHostWrapper, svc *model.Service) *route.VirtualHost {
+	buildVirtualHost := func(hostname string, vhwrapper istio_route.VirtualHostWrapper, svc *model.Service) []string {
 		name := util.DomainName(hostname, vhwrapper.Port)
 		if vhosts.InsertContains(name) {
 			// This means this virtual host has caused duplicate virtual host name.
@@ -430,12 +433,7 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 			push.AddMetric(model.DuplicatedDomains, name, node.ID, msg)
 		}
 		if len(domains) > 0 {
-			return &route.VirtualHost{
-				Name:                       name,
-				Domains:                    domains,
-				Routes:                     vhwrapper.Routes,
-				IncludeRequestAttemptCount: true,
-			}
+			return domains
 		}
 
 		return nil
@@ -453,20 +451,38 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 		if len(virtualHostWrapper.Routes) == 0 {
 			continue
 		}
-		virtualHosts := make([]*route.VirtualHost, 0, len(virtualHostWrapper.VirtualServiceHosts)+len(virtualHostWrapper.Services))
+
+		virtualHost := &route.VirtualHost{
+			Routes:                     virtualHostWrapper.Routes,
+			IncludeRequestAttemptCount: true,
+		}
+		var domains []string
 
 		for _, hostname := range virtualHostWrapper.VirtualServiceHosts {
-			if vhost := buildVirtualHost(hostname, virtualHostWrapper, nil); vhost != nil {
-				virtualHosts = append(virtualHosts, vhost)
+			if virtualHost.Name == "" {
+				virtualHost.Name = util.DomainName(hostname, virtualHostWrapper.Port)
+			}
+
+			if dm := buildVirtualHost(hostname, virtualHostWrapper, nil); len(dm) != 0 {
+				domains = append(domains, dm...)
 			}
 		}
 
 		for _, svc := range virtualHostWrapper.Services {
-			if vhost := buildVirtualHost(string(svc.Hostname), virtualHostWrapper, svc); vhost != nil {
-				virtualHosts = append(virtualHosts, vhost)
+			if virtualHost.Name == "" {
+				virtualHost.Name = util.DomainName(string(svc.Hostname), virtualHostWrapper.Port)
+			}
+			if dm := buildVirtualHost(string(svc.Hostname), virtualHostWrapper, svc); len(dm) != 0 {
+				domains = append(domains, dm...)
 			}
 		}
-		vHostPortMap[virtualHostWrapper.Port] = append(vHostPortMap[virtualHostWrapper.Port], virtualHosts...)
+		if len(domains) == 0 {
+			continue
+		}
+
+		virtualHost.Domains = domains
+
+		vHostPortMap[virtualHostWrapper.Port] = append(vHostPortMap[virtualHostWrapper.Port], virtualHost)
 	}
 
 	var out []*route.VirtualHost
