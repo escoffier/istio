@@ -303,9 +303,6 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 	// egress listener only. A route with sniffing would not have been generated if there
 	// was a sidecar with explicit port (and hence protocol declaration). A route with
 	// sniffing is generated only in the case of the catch all egress listener.
-	if routeName == "7777" {
-		fmt.Println(routeName)
-	}
 	egressListener := node.SidecarScope.GetEgressListenerForRDS(listenerPort, routeName)
 	// We should never be getting a nil egress listener because the code that setup this RDS
 	// call obviously saw an egress listener
