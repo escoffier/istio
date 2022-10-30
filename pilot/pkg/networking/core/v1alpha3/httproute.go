@@ -393,7 +393,7 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 	vhdomains := sets.String{}
 	knownFQDN := sets.String{}
 
-	buildVirtualHost := func(hostname string, vhwrapper istio_route.VirtualHostWrapper, svc *model.Service) []string {
+	buildVirtualHostDomains := func(hostname string, vhwrapper istio_route.VirtualHostWrapper, svc *model.Service) []string {
 		name := util.DomainName(hostname, vhwrapper.Port)
 		if vhosts.InsertContains(name) {
 			// This means this virtual host has caused duplicate virtual host name.
@@ -460,7 +460,7 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 				virtualHost.Name = util.DomainName(hostname, virtualHostWrapper.Port)
 			}
 
-			if dm := buildVirtualHost(hostname, virtualHostWrapper, nil); len(dm) != 0 {
+			if dm := buildVirtualHostDomains(hostname, virtualHostWrapper, nil); len(dm) != 0 {
 				domains = append(domains, dm...)
 			}
 		}
@@ -469,7 +469,7 @@ func BuildSidecarOutboundVirtualHosts(node *model.Proxy, push *model.PushContext
 			if virtualHost.Name == "" {
 				virtualHost.Name = util.DomainName(string(svc.Hostname), virtualHostWrapper.Port)
 			}
-			if dm := buildVirtualHost(string(svc.Hostname), virtualHostWrapper, svc); len(dm) != 0 {
+			if dm := buildVirtualHostDomains(string(svc.Hostname), virtualHostWrapper, svc); len(dm) != 0 {
 				domains = append(domains, dm...)
 			}
 		}
