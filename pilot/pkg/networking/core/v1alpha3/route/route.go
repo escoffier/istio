@@ -76,6 +76,9 @@ type DestinationHashMap map[*networking.HTTPRouteDestination]*networking.LoadBal
 // it by listener port. However to properly use such an optimization, we need to have an
 // eventing subsystem to invalidate the computed routes if any service changes/virtual Services change.
 type VirtualHostWrapper struct {
+	// Name is virtual service namespace/name
+	Name string
+
 	// Port is the listener port for outbound sidecar (e.g. service port)
 	Port int
 
@@ -235,6 +238,7 @@ func buildSidecarVirtualHostsForVirtualService(
 	out := make([]VirtualHostWrapper, 0, len(serviceByPort))
 	for port, services := range serviceByPort {
 		out = append(out, VirtualHostWrapper{
+			Name:                fmt.Sprintf("%s/%s", virtualService.Namespace, virtualService.Name),
 			Port:                port,
 			Services:            services,
 			VirtualServiceHosts: hosts,
